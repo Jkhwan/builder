@@ -52,5 +52,5 @@ THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 [1]:https://github.com/component/component
 [2]:https://github.com/Retsly/idx/blob/master/component.json
-[3]:../builder-stylus/
-[4]:https://github.com/segmentio/component-jade
+[3]:https://github.com/Retsly/builder-stylus
+[4]:https://github.com/component/builder-jade
