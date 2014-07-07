@@ -2,7 +2,7 @@
 var Resolve = require('component-resolver')
 var Builder = require('component-builder')
 var stylus = require('builder-stylus')
-var debug = require('debug')('idx:build')
+var debug = require('debug')('retsly:build')
 var extend = require('extend-object')
 var jade = require('builder-jade')
 var parse = require('url').parse
@@ -30,7 +30,7 @@ module.exports = function (opts) {
   var builtScripts = false
   var builtStyles = false
 
-  var root = opts.root || process.cwd()
+  var root = opts.rootDir || process.cwd()
   var re = new RegExp('^' + opts.path + '.(js|css)$')
 
   debug('root is \'%s\'', root)
@@ -77,6 +77,8 @@ module.exports = function (opts) {
     function scripts(tree, opts) {
       // only build once in production
       if (!dev && builtScripts) return done(null, builtScripts)
+      // source URLs in development
+      opts.sourceURL = dev
 
       var start = Date.now()
       Builder
