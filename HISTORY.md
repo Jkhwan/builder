@@ -1,4 +1,8 @@
 
+# 0.0.3
+
+- install components under `opts.rootDir`
+
 # 0.0.2
 
 - rename `opts.root` -> `opts.rootDir` to appease stylus

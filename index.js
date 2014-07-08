@@ -142,9 +142,10 @@ module.exports = function (opts) {
     if (!dev && resolvedTree) return done(null, resolvedTree)
     if (resolving) return queue.push(done)
 
+    var out = root + '/components'
     resolving = true
 
-    Resolve(root, {install:true}, function (err, tree) {
+    Resolve(root, {install:true, out:out}, function (err, tree) {
       resolving = false
       resolvedTree = tree
       while (queue.length) queue.shift()(err, tree)
