@@ -1,3 +1,7 @@
+# 0.1.1
+
+- jade templates not strings by default
+
 # 0.1.0
 
 - major refactor

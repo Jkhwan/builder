@@ -59,7 +59,7 @@ exports.Builder = function Builder (opts) {
     install: true,
     require: true,
     runtime: true,
-    string:  true, // TODO make default false!
+    string: false,
     linenos: dev,
     destination: this.out,
     path: '/app',
