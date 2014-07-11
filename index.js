@@ -22,10 +22,10 @@ var dev = process.env.NODE_ENV === 'development'
  */
 
 exports = module.exports = function (opts) {
-  var builder = new exports.Builder(opts)
+  var builder = new Builder(opts)
   var building = false
   var built = false
-  return function builder (req, res, next) {
+  return function (req, res, next) {
     // only build once in production
     if (built) return next()
     if (building) return next()
@@ -42,10 +42,16 @@ exports = module.exports = function (opts) {
 }
 
 /**
+ * Expose Builder
+ */
+
+exports.Builder = Builder
+
+/**
  * Component builder
  */
 
-exports.Builder = function Builder (opts) {
+function Builder (opts) {
   opts = opts || {}
 
   // we delete from opts for stylus' sake

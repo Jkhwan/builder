@@ -1,3 +1,7 @@
+# 0.1.2
+
+- Builder derp
+
 # 0.1.1
 
 - jade templates not strings by default
