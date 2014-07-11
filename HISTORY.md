@@ -1,3 +1,7 @@
+# 0.1.0
+
+- major refactor
+- exports Builder for use without express
 
 # 0.0.3
 

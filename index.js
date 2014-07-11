@@ -1,155 +1,173 @@
 
-var Resolve = require('component-resolver')
-var Builder = require('component-builder')
-var stylus = require('builder-stylus')
 var debug = require('debug')('retsly:build')
+var Component = require('component-builder')
+var Resolve = require('component-resolver')
+var stylus = require('builder-stylus')
 var extend = require('extend-object')
 var jade = require('builder-jade')
 var parse = require('url').parse
 var bytes = require('bytes')
-var plugins = Builder.plugins
+var parallel = require('nimble').parallel
+var write = require('fs').writeFileSync
+var plugins = Component.plugins
+
+/**
+ * Is the real life? Or just development?
+ */
 
 var dev = process.env.NODE_ENV === 'development'
 
-module.exports = function (opts) {
+/**
+ * Middleware
+ */
+
+exports = module.exports = function (opts) {
+  var builder = new exports.Builder(opts)
+  var building = false
+  var built = false
+  return function builder (req, res, next) {
+    // only build once in production
+    if (built) return next()
+    if (building) return next()
+
+    building = true
+
+    // resolve and build
+    builder.build(function(err){
+      if (!dev) built = true
+      building = false
+      next(err)
+    })
+  }
+}
+
+/**
+ * Component builder
+ */
+
+exports.Builder = function Builder (opts) {
+  opts = opts || {}
+
+  // we delete from opts for stylus' sake
+  this.root = opts.root || process.cwd()
+  this.out = opts.out || process.cwd() + '/build'
+  delete opts.root
+  delete opts.out
+
   // defaults
-  opts = extend({
+  this.opts = extend({
     install: true,
     require: true,
-    string:  true,
     runtime: true,
+    string:  true, // TODO make default false!
     linenos: dev,
+    destination: this.out,
     path: '/app',
-  }, opts || {})
+  }, opts)
+}
 
-  var resolving = false
-  var queue = []
+/**
+ * Build
+ */
 
-  var resolvedTree = false
-  var builtFiles = false
-  var builtScripts = false
-  var builtStyles = false
+Builder.prototype.build = function (done) {
+  var self = this
+  this.resolve(function (err, tree) {
+    if (err) return done(err)
 
-  var root = opts.rootDir || process.cwd()
-  var re = new RegExp('^' + opts.path + '.(js|css)$')
+    parallel([
+      self.files.bind(self, tree),
+      self.scripts.bind(self, tree),
+      self.styles.bind(self, tree)
+    ], done)
+  })
+}
 
-  debug('root is \'%s\'', root)
+/**
+ * Resolve dependencies one at a time
+ * @api private
+ */
 
-  return function build(req, res, next) {
-    var m = re.exec(parse(req.url).pathname)
-    if (!m) return next()
+Builder.prototype.resolve = function (done) {
+  var root = this.root
+  var out = root + '/components'
+  var start = Date.now()
+  var self = this
 
-    resolve(function (err, tree) {
-      if (err) return next(err)
-      files(tree, opts, function(err) {
-        if (err) return next(err)
-        if (m && m[1] === 'js') return scripts(tree, opts)
-        if (m && m[1] === 'css') return styles(tree, opts)
-      })
+  if (!dev && this.tree) return done(null, this.tree)
+
+  Resolve(root, {install:true, out:out}, function (err, tree) {
+    debug('resolved deps in %dms', Date.now() - start)
+    done(err, tree)
+  })
+}
+
+/**
+ * Build files
+ * @api private
+ */
+
+Builder.prototype.files = function (tree, done) {
+  // TODO locate this
+  // // only build once in production
+  // if (!dev && builtFiles) return done()
+
+  var start = Date.now()
+  Component
+    .files(tree, this.opts)
+    .use('images', plugins.copy())
+    .use('fonts', plugins.copy())
+    .use('files', plugins.copy())
+    .end(function(err) {
+      debug('built files in %dms', Date.now() - start)
+      done(err)
     })
+}
 
-    /**
-     * Build files
-     */
+/**
+ * Build scripts
+ * @api private
+ */
 
-    function files(tree, opts, done) {
-      // only build once in production
-      if (!dev && builtFiles) return done()
+Builder.prototype.scripts = function (tree, done) {
+  var path = this.out + this.opts.path + '.js'
+  var start = Date.now()
+  var opts = this.opts
+  Component
+    .scripts(tree, opts)
+    .use('templates', jade(opts))
+    .use('templates', plugins.string(opts))
+    .use('scripts', plugins.js(opts))
+    .use('json', plugins.json(opts))
+    .end(function(err, js) {
+      if (err) return done(err)
 
-      var start = Date.now()
-      Builder
-        .files(tree, opts)
-        .use('images', plugins.copy())
-        .use('fonts', plugins.copy())
-        .use('files', plugins.copy())
-        .end(function(err) {
-          if (err) return done(err)
-          builtFiles = true
-          debug('built files in %dms', Date.now() - start)
-          done()
-        })
-    }
+      // TODO minify!
 
-    /**
-     * Build scripts
-     */
-
-    function scripts(tree, opts) {
-      // only build once in production
-      if (!dev && builtScripts) return done(null, builtScripts)
-      // source URLs in development
-      opts.sourceURL = dev
-
-      var start = Date.now()
-      Builder
-        .scripts(tree, opts)
-        .use('templates', jade(opts))
-        .use('templates', plugins.string(opts))
-        .use('scripts', plugins.js(opts))
-        .use('json', plugins.json(opts))
-        .end(done)
-
-      function done (err, js) {
-        if (err) return next(err)
-
-        builtScripts = js
-        // add require and jade runtime to the built JS
-        // TODO fix retsly/gallery so it doesn't need the runtime
-        var send = Builder.scripts.require + jade.runtime + js
-
-        debug('built js in %dms (%s)', Date.now() - start, bytes(send.length))
-
-        if (dev) res.setHeader('Cache-Control', 'private, no-cache')
-        res.setHeader('Content-Type', 'application/javascript')
-        res.setHeader('Content-Length', Buffer.byteLength(send))
-        res.end(send)
-      }
-    }
-
-    /**
-     * Build styles
-     */
-
-    function styles(tree, opts) {
-      // only build once in production
-      if (!dev && builtStyles) return done(null, builtStyles)
-
-      var start = Date.now()
-      Builder
-        .styles(tree, opts)
-        .use('styles', stylus(opts))
-        .use('styles', plugins.urlRewriter(opts.prefix || ''))
-        .end(done)
-
-      function done (err, css) {
-        if (err) return next(err)
-        builtStyles = css = css || ''
-        debug('built css in %dms (%s)', Date.now() - start, bytes(css.length))
-
-        if (dev) res.setHeader('Cache-Control', 'private, no-cache')
-        res.setHeader('Content-Type', 'text/css; charset=utf-8')
-        res.setHeader('Content-Length', Buffer.byteLength(css))
-        res.end(css)
-      }
-    }
-  }
-
-  /**
-   * Resolve dependencies (one at a time)
-   */
-
-  function resolve(done) {
-    if (!dev && resolvedTree) return done(null, resolvedTree)
-    if (resolving) return queue.push(done)
-
-    var out = root + '/components'
-    resolving = true
-
-    Resolve(root, {install:true, out:out}, function (err, tree) {
-      resolving = false
-      resolvedTree = tree
-      while (queue.length) queue.shift()(err, tree)
-      done(err, tree)
+      // add require and jade runtime to the built JS
+      var buf = Component.scripts.require + jade.runtime + js
+      write(path, buf)
+      debug('built js in %dms (%s)', Date.now() - start, bytes(buf.length))
+      done()
     })
-  }
+}
+
+/**
+ * Build styles
+ * @api private
+ */
+
+Builder.prototype.styles = function (tree, done) {
+  var path = this.out + this.opts.path + '.css'
+  var start = Date.now()
+  var opts = this.opts
+  Component
+    .styles(tree, opts)
+    .use('styles', stylus(opts))
+    .use('styles', plugins.urlRewriter(opts.prefix || ''))
+    .end(function (err, css) {
+      write(path, css)
+      debug('built css in %dms (%s)', Date.now() - start, bytes(css.length))
+      done()
+    })
 }

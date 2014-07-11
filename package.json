@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "builder",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "license": "MIT",
   "repository": "retsly/builder",
   "author": "Luke Vivier <luke@vivier.ca>",
@@ -13,6 +13,7 @@
     "builder-stylus": "retsly/builder-stylus",
     "builder-jade": "1.0.1",
     "bytes": "~0.2.1",
+    "nimble": "0.0.2",
     "debug": "1.0.2"
   }
 }
