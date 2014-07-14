@@ -1,3 +1,9 @@
+# 0.1.3
+
+- middleware response is always async
+- add docblock
+- update README.md
+
 # 0.1.2
 
 - Builder derp

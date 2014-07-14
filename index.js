@@ -1,4 +1,8 @@
 
+/**
+ * Dependencies
+ */
+
 var debug = require('debug')('retsly:build')
 var Component = require('component-builder')
 var Resolve = require('component-resolver')
@@ -10,25 +14,47 @@ var bytes = require('bytes')
 var parallel = require('nimble').parallel
 var write = require('fs').writeFileSync
 var plugins = Component.plugins
+var join = require('path').join
 
-/**
- * Is the real life? Or just development?
+/*!
+ * Is this the real life? Or just development?
  */
 
 var dev = process.env.NODE_ENV === 'development'
 
 /**
- * Middleware
+ * Returns an Express middleware
+ *
+ * Example:
+ *
+ *     // hit /app/app.js to get the compiled app
+ *     app
+ *       .use('/app', builder({out:'build', path:'app'}))
+ *       .use('/app', static('build'))
+ *
+ * Options:
+ *
+ *     out     ('./build') output directory
+ *     root    ('.')     path to component.json
+ *     path    ('app')   filename for compiled css and js
+ *
+ * The options object is also passed
+ * directly to the builder and plugins:
+ *
+ * - [component-builder2](https://github.com/component/builder2.js)
+ * - [builder-stylus](https://github.com/retsly/builder-stylus)
+ * - [builder-jade](https://github.com/component/builder-jade)
+ *
+ * @param  {Object} opts
+ * @return {Function}
  */
-
 exports = module.exports = function (opts) {
   var builder = new Builder(opts)
   var building = false
   var built = false
   return function (req, res, next) {
-    // only build once in production
-    if (built) return next()
-    if (building) return next()
+    // only build once in production and don't jump the queue
+    if (built || building) return process.nextTick(next)
 
     building = true
 
@@ -49,6 +75,7 @@ exports.Builder = Builder
 
 /**
  * Component builder
+ * @param {Object} opts
  */
 
 function Builder (opts) {
@@ -68,24 +95,28 @@ function Builder (opts) {
     string: false,
     linenos: dev,
     destination: this.out,
-    path: '/app',
+    path: 'app',
   }, opts)
 }
 
 /**
- * Build
+ * Resolve dependencies and build application.
+ * Writes out to `this.out`. `cb` is called
+ * when done or an error is encountered.
+ *
+ * @param {Function} done callback
  */
 
-Builder.prototype.build = function (done) {
+Builder.prototype.build = function (cb) {
   var self = this
   this.resolve(function (err, tree) {
-    if (err) return done(err)
+    if (err) return cb(err)
 
     parallel([
       self.files.bind(self, tree),
       self.scripts.bind(self, tree),
       self.styles.bind(self, tree)
-    ], done)
+    ], cb)
   })
 }
 
@@ -96,7 +127,7 @@ Builder.prototype.build = function (done) {
 
 Builder.prototype.resolve = function (done) {
   var root = this.root
-  var out = root + '/components'
+  var out = join(root, 'components')
   var start = Date.now()
   var self = this
 
@@ -114,10 +145,6 @@ Builder.prototype.resolve = function (done) {
  */
 
 Builder.prototype.files = function (tree, done) {
-  // TODO locate this
-  // // only build once in production
-  // if (!dev && builtFiles) return done()
-
   var start = Date.now()
   Component
     .files(tree, this.opts)
@@ -136,7 +163,7 @@ Builder.prototype.files = function (tree, done) {
  */
 
 Builder.prototype.scripts = function (tree, done) {
-  var path = this.out + this.opts.path + '.js'
+  var path = join(this.out, this.opts.path) + '.js'
   var start = Date.now()
   var opts = this.opts
   Component
@@ -164,7 +191,7 @@ Builder.prototype.scripts = function (tree, done) {
  */
 
 Builder.prototype.styles = function (tree, done) {
-  var path = this.out + this.opts.path + '.css'
+  var path = join(this.out, this.opts.path) + '.css'
   var start = Date.now()
   var opts = this.opts
   Component

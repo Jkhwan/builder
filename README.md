@@ -34,9 +34,29 @@ Launch the app with `DEBUG=idx:build` to show debug output.
 
 Returns an Express middleware.
 
-#### options
+#### Example
 
-- `destination` path where files will be written.
+    // hit /app/app.js to get the compiled app
+    app
+      .use('/app', builder({out:'build', path:'app'}))
+      .use('/app', static('build'))
+
+#### Options
+
+    out     ('./build') output directory
+    root    ('.')     path to component.json
+    path    ('app')   filename for compiled css and js
+
+The options object is also passed directly to the builder and plugins:
+
+- [component-builder2](https://github.com/component/builder2.js)
+- [builder-stylus](https://github.com/retsly/builder-stylus)
+- [builder-jade](https://github.com/component/builder-jade)
+
+### Builder(opts)
+
+Builder constructor. Use this to build your app in non-middleware
+contexts (ie. build scripts). Same options as above.
 
 ## License
 
