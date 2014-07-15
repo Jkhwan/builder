@@ -26,7 +26,7 @@ JavaScript source maps** in Chrome Devtools.
 
 ### Debug output
 
-Launch the app with `DEBUG=idx:build` to show debug output.
+Launch the app with `DEBUG=retsly:build` to show debug output.
 
 ## API
 
@@ -44,8 +44,8 @@ Returns an Express middleware.
 #### Options
 
     out     ('./build') output directory
-    root    ('.')     path to component.json
-    path    ('app')   filename for compiled css and js
+    root    ('.')       path to component.json
+    path    ('app')     filename for compiled css and js
 
 The options object is also passed directly to the builder and plugins:
 
