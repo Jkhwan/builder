@@ -35,8 +35,8 @@ var dev = process.env.NODE_ENV === 'development'
  * Options:
  *
  *     out     ('./build') output directory
- *     root    ('.')     path to component.json
- *     path    ('app')   filename for compiled css and js
+ *     root    ('.')       path to component.json
+ *     path    ('app')     filename for compiled css and js
  *
  * The options object is also passed
  * directly to the builder and plugins:
@@ -164,6 +164,7 @@ Builder.prototype.files = function (tree, done) {
 
 Builder.prototype.scripts = function (tree, done) {
   var path = join(this.out, this.opts.path) + '.js'
+  var alias = this.opts.alias
   var start = Date.now()
   var opts = this.opts
   Component
@@ -179,6 +180,25 @@ Builder.prototype.scripts = function (tree, done) {
 
       // add require and jade runtime to the built JS
       var buf = Component.scripts.require + jade.runtime + js
+
+      // add correct aliases based on node name (as in component.json)
+      if (alias) {
+        for (var key in tree.dependencies) {
+          var dep = tree.dependencies[key]
+          var name = dep.name.split('/')[1]
+          var nodeName = dep.node.name
+
+          if (name == nodeName) continue
+
+          debug('adding alias for js (%s = %s)', nodeName, name)
+
+          var str = 'require.modules["{nodeName}"] = require.modules["{name}"];\n'
+            .replace('{nodeName}', nodeName)
+            .replace('{name}', name)
+          buf+= str
+        }
+      }
+
       write(path, buf)
       debug('built js in %dms (%s)', Date.now() - start, bytes(buf.length))
       done()
