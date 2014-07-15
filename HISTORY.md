@@ -1,3 +1,7 @@
+# 0.1.4
+
+- fix aliases for named components
+
 # 0.1.3
 
 - middleware response is always async
