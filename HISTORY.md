@@ -1,3 +1,7 @@
+# 0.1.5
+
+- ensure output directory exists
+
 # 0.1.4
 
 - fix aliases for named components

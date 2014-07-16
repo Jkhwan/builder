@@ -113,7 +113,7 @@ Builder.prototype.build = function (cb) {
   this.resolve(function (err, tree) {
     if (err) return cb(err)
 
-    mkdirp(this.out)
+    mkdirp(self.out)
 
     parallel([
       self.files.bind(self, tree),
