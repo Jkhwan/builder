@@ -15,6 +15,7 @@ var parallel = require('nimble').parallel
 var write = require('fs').writeFileSync
 var plugins = Component.plugins
 var join = require('path').join
+var mkdirp = require('mkdirp')
 
 /*!
  * Is this the real life? Or just development?
@@ -112,6 +113,8 @@ Builder.prototype.build = function (cb) {
   this.resolve(function (err, tree) {
     if (err) return cb(err)
 
+    mkdirp(this.out)
+
     parallel([
       self.files.bind(self, tree),
       self.scripts.bind(self, tree),
@@ -190,7 +193,7 @@ Builder.prototype.scripts = function (tree, done) {
 
           if (name == nodeName) continue
 
-          debug('adding alias for js (%s = %s)', nodeName, name)
+          debug('adding alias for js (%s -> %s)', nodeName, name)
 
           var str = 'require.modules["{nodeName}"] = require.modules["{name}"];\n'
             .replace('{nodeName}', nodeName)
